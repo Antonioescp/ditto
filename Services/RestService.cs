@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Ditto.Helpers;
 using Ditto.Interfaces;
 using Ditto.Models;
 using Microsoft.Extensions.Logging;
@@ -132,56 +133,20 @@ public class RestService : IService
             }
 
             // Validar que responseBody y responseBodyFilePath sean mutuamente exclusivos
-            if (endpoint.ResponseBody != null && !string.IsNullOrWhiteSpace(endpoint.ResponseBodyFilePath))
+            if (!EndpointValidator.ValidateResponseBodyExclusivity(endpoint, _logger, $"endpoint {endpoint.Path}"))
             {
-                _logger.LogError("El endpoint {Path} tiene ambos 'responseBody' y 'responseBodyFilePath' configurados. Solo uno debe estar presente.", endpoint.Path);
                 response.StatusCode = 500;
                 response.Close();
                 return;
             }
 
-            // Escribir body de respuesta
-            object? responseBodyToProcess = null;
-            
-            if (!string.IsNullOrWhiteSpace(endpoint.ResponseBodyFilePath))
+            // Obtener body de respuesta
+            var responseBodyToProcess = await ResponseFileLoader.GetResponseBodyAsync(endpoint, _logger);
+            if (responseBodyToProcess == null && !string.IsNullOrWhiteSpace(endpoint.ResponseBodyFilePath))
             {
-                // Leer el contenido del archivo
-                try
-                {
-                    var fileContent = await LoadResponseBodyFromFileAsync(endpoint.ResponseBodyFilePath);
-                    if (fileContent == null)
-                    {
-                        _logger.LogError("No se pudo leer el archivo de respuesta: {FilePath}", endpoint.ResponseBodyFilePath);
-                        response.StatusCode = 500;
-                        response.Close();
-                        return;
-                    }
-                    
-                    // Deserializar el contenido del archivo como JSON si es posible
-                    try
-                    {
-                        responseBodyToProcess = JsonSerializer.Deserialize<object>(fileContent, new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        });
-                    }
-                    catch (JsonException)
-                    {
-                        // Si no es JSON válido, usar el contenido como string
-                        responseBodyToProcess = fileContent;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error al leer el archivo de respuesta: {FilePath}", endpoint.ResponseBodyFilePath);
-                    response.StatusCode = 500;
-                    response.Close();
-                    return;
-                }
-            }
-            else if (endpoint.ResponseBody != null)
-            {
-                responseBodyToProcess = endpoint.ResponseBody;
+                response.StatusCode = 500;
+                response.Close();
+                return;
             }
 
             if (responseBodyToProcess != null)
@@ -258,7 +223,7 @@ public class RestService : IService
                 });
                 
                 // Convertir JsonElement a diccionario para que Handlebars pueda acceder a las propiedades
-                return ConvertJsonElementToObject(jsonElement);
+                return JsonConverter.ConvertJsonElementToObject(jsonElement);
             }
             catch (JsonException)
             {
@@ -270,45 +235,6 @@ public class RestService : IService
         {
             _logger.LogWarning(ex, "Error al leer el body de la request");
             return null;
-        }
-    }
-
-    private object ConvertJsonElementToObject(JsonElement element)
-    {
-        switch (element.ValueKind)
-        {
-            case JsonValueKind.Object:
-                var dict = new Dictionary<string, object>();
-                foreach (var property in element.EnumerateObject())
-                {
-                    dict[property.Name] = ConvertJsonElementToObject(property.Value);
-                }
-                return dict;
-            
-            case JsonValueKind.Array:
-                return element.EnumerateArray().Select(ConvertJsonElementToObject).ToList();
-            
-            case JsonValueKind.String:
-                return element.GetString() ?? string.Empty;
-            
-            case JsonValueKind.Number:
-                if (element.TryGetInt32(out var intValue))
-                    return intValue;
-                if (element.TryGetInt64(out var longValue))
-                    return longValue;
-                return element.GetDouble();
-            
-            case JsonValueKind.True:
-                return true;
-            
-            case JsonValueKind.False:
-                return false;
-            
-            case JsonValueKind.Null:
-                return null!;
-            
-            default:
-                return element.ToString();
         }
     }
 
@@ -369,29 +295,5 @@ public class RestService : IService
                 ["body"] = body ?? new object()
             }
         };
-    }
-
-    private async Task<string?> LoadResponseBodyFromFileAsync(string filePath)
-    {
-        try
-        {
-            // Si la ruta es relativa, buscar desde el directorio de trabajo actual
-            var fullPath = Path.IsPathRooted(filePath) 
-                ? filePath 
-                : Path.Combine(Directory.GetCurrentDirectory(), filePath);
-
-            if (!File.Exists(fullPath))
-            {
-                _logger.LogWarning("El archivo de respuesta no existe: {FilePath}", fullPath);
-                return null;
-            }
-
-            return await File.ReadAllTextAsync(fullPath);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al leer el archivo de respuesta: {FilePath}", filePath);
-            return null;
-        }
     }
 }
