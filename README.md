@@ -7,7 +7,7 @@ Ditto es una herramienta de consola desarrollada en C# que permite simular difer
 - ✅ Servicios REST (implementado)
 - ✅ Servicios TCP (implementado)
 - ✅ Servicios SOAP (implementado)
-- 🔄 Servicios COM (próximamente)
+- ✅ Servicios COM (implementado)
 
 ## Requisitos
 
@@ -73,6 +73,13 @@ El archivo de configuración por defecto es `services.json`. Ejemplo de estructu
 - `method`: Método HTTP (normalmente POST para SOAP)
 - `statusCode`: Código de estado HTTP a devolver
 - `headers`: Diccionario de headers HTTP (Content-Type por defecto es `text/xml; charset=utf-8` si no se especifica)
+
+#### Para Servicios COM:
+- `pattern`: Patrón regex opcional para matchear mensajes COM. Si no se especifica, el endpoint se usa como predeterminado cuando no hay otros matches.
+  - Puedes usar **grupos de captura nombrados** (ej: `(?<nombreGrupo>patrón)`) para extraer valores del mensaje.
+  - Los grupos capturados estarán disponibles en Handlebars como `{{request.captures.nombreGrupo}}`.
+
+**Nota:** Los servicios COM usan puertos seriales (COM1, COM2, COM9, etc.) para comunicación serial. El `port` en la configuración debe ser el número del puerto serial (ej: `9` para COM9) o el nombre completo del puerto (ej: `"COM9"`). Los parámetros seriales por defecto son: 9600 baudios, 8 bits de datos, sin paridad, 1 bit de parada.
 
 #### Parámetros Comunes:
 - `responseBody`: Objeto JSON que será la respuesta. Soporta expresiones Handlebars para generar respuestas dinámicas basadas en la solicitud. **Mutuamente exclusivo con `responseBodyFilePath`**.
@@ -240,6 +247,53 @@ El contexto disponible en servicios SOAP es similar a REST:
 - Las respuestas SOAP normalmente son XML. El `responseBody` puede ser una cadena XML (que puede contener Handlebars) o un objeto que se serializará como JSON.
 - El body de la request XML se parsea automáticamente y se convierte a un diccionario para que Handlebars pueda acceder a los elementos XML.
 - Los archivos de respuesta (`responseBodyFilePath`) pueden contener XML con expresiones Handlebars.
+
+### Servicios COM
+
+Los servicios COM permiten simular servicios de comunicación serial usando puertos COM (COM1, COM2, COM9, etc.). Son similares a los servicios TCP pero usan puertos seriales en lugar de sockets de red.
+
+#### Ejemplo de Configuración COM:
+
+```json
+{
+  "type": "COM",
+  "name": "Servicio COM",
+  "port": 9,
+  "endpoints": [
+    {
+      "pattern": "CMD:(?<command>\\w+)\\s+KEY:(?<key>\\w+)\\s+VALUE:(?<value>.*)",
+      "responseBody": {
+        "status": "OK",
+        "receivedCommand": "{{request.captures.command}}",
+        "key": "{{request.captures.key}}",
+        "value": "{{request.captures.value}}",
+        "fullMessage": "{{request.message}}"
+      }
+    },
+    {
+      "responseBodyFilePath": "responses/com-response.json"
+    }
+  ]
+}
+```
+
+#### Contexto Handlebars para COM:
+
+El contexto disponible en servicios COM es similar a TCP pero sin información de cliente (dirección IP/puerto):
+
+- `{{request.message}}`: Mensaje completo recibido como string
+- `{{request.parsedMessage}}`: Mensaje parseado como objeto (si es JSON válido) o string
+- `{{request.parsedMessage.fieldName}}`: Campos específicos del mensaje parseado si es JSON (ej: `{{request.parsedMessage.name}}`)
+- `{{request.timestamp}}`: Timestamp ISO 8601 de cuando se recibió el mensaje
+- `{{request.captures.nombreGrupo}}`: Valor capturado de un grupo nombrado en el patrón regex (ej: `{{request.captures.command}}`, `{{request.captures.key}}`)
+
+**Notas importantes sobre COM:**
+- Los servicios COM usan puertos seriales (COM1, COM2, COM9, etc.) para comunicación serial.
+- El `port` en la configuración debe ser el número del puerto (ej: `9` para COM9) o el nombre completo (ej: `"COM9"`).
+- Los parámetros seriales por defecto son: 9600 baudios, 8 bits de datos, sin paridad, 1 bit de parada.
+- Los mensajes se procesan cuando se recibe un salto de línea (`\n` o `\r\n`).
+- Soporta todas las características de TCP: regex matching, grupos de captura, Handlebars, archivos de respuesta, y delays.
+- Los mensajes se pueden parsear como JSON automáticamente si son válidos.
 
 ## Arquitectura
 

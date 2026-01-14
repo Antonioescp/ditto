@@ -1,0 +1,7 @@
+{
+  "status": "OK",
+  "command": "SET",
+  "receivedMessage": "{{request.message}}",
+  "processedAt": "{{request.timestamp}}",
+  "parsedMessage": "{{request.parsedMessage}}"
+}

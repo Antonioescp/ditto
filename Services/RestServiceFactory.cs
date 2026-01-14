@@ -25,6 +25,7 @@ public class RestServiceFactory : IServiceFactory
             "REST" => new RestService(configuration, _loggerFactory.CreateLogger<RestService>(), _templateProcessor),
             "TCP" => new TcpService(configuration, _loggerFactory.CreateLogger<TcpService>(), _templateProcessor),
             "SOAP" => new SoapService(configuration, _loggerFactory.CreateLogger<SoapService>(), _templateProcessor),
+            "COM" => new ComService(configuration, _loggerFactory.CreateLogger<ComService>(), _templateProcessor),
             _ => throw new NotSupportedException($"Tipo de servicio no soportado: {configuration.Type}")
         };
     }

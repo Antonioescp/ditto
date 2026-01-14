@@ -185,5 +185,45 @@
         "delayMs": 150
       }
     ]
+  },
+  {
+    "type": "COM",
+    "name": "Servicio COM de Ejemplo",
+    "port": 3,
+    "endpoints": [
+      {
+        "pattern": ".*GET.*",
+        "responseBody": {
+          "action": "GET",
+          "message": "Mensaje recibido: {{request.message}}",
+          "timestamp": "{{request.timestamp}}"
+        },
+        "delayMs": 100
+      },
+      {
+        "pattern": "CMD:(?<command>\\w+)\\s+KEY:(?<key>\\w+)\\s+VALUE:(?<value>.*)",
+        "responseBody": {
+          "status": "OK",
+          "receivedCommand": "{{request.captures.command}}",
+          "key": "{{request.captures.key}}",
+          "value": "{{request.captures.value}}",
+          "fullMessage": "{{request.message}}",
+          "timestamp": "{{request.timestamp}}"
+        },
+        "delayMs": 50
+      },
+      {
+        "pattern": ".*SET.*",
+        "responseBodyFilePath": "responses/com-response.json",
+        "delayMs": 200
+      },
+      {
+        "responseBody": {
+          "default": "Mensaje por defecto COM",
+          "originalMessage": "{{request.message}}",
+          "parsedFields": "{{request.parsedMessage}}"
+        }
+      }
+    ]
   }
 ]
