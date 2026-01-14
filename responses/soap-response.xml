@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <GetProductResponse>
+      <ProductId>{{request.body.GetProduct.ProductId}}</ProductId>
+      <ProductName>{{request.body.GetProduct.ProductName}}</ProductName>
+      <Price>{{request.body.GetProduct.Price}}</Price>
+      <RequestedPath>{{request.path}}</RequestedPath>
+      <Timestamp>{{request.headers.Date}}</Timestamp>
+    </GetProductResponse>
+  </soap:Body>
+</soap:Envelope>

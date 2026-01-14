@@ -1,0 +1,189 @@
+[
+  {
+    "type": "REST",
+    "name": "My ip",
+    "port": 47950,
+    "endpoints": [
+      {
+        "path": "/api/test",
+        "method": "GET",
+        "statusCode": 200,
+        "responseBody": {
+          "message": "hello {{ request.body.name }}"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    ]
+  },
+  {
+    "type": "REST",
+    "name": "API de Ejemplo",
+    "port": 8080,
+    "endpoints": [
+      {
+        "path": "/api/users",
+        "method": "GET",
+        "statusCode": 200,
+        "responseBody": {
+          "users": [
+            {
+              "id": 1,
+              "name": "Juan Pérez",
+              "email": "juan@example.com"
+            },
+            {
+              "id": 2,
+              "name": "María García",
+              "email": "maria@example.com"
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      {
+        "path": "/api/users",
+        "method": "POST",
+        "statusCode": 201,
+        "responseBody": {
+          "id": 3,
+          "message": "Usuario creado exitosamente",
+          "method": "{{request.method}}",
+          "userName": "{{request.body.name}}",
+          "userEmail": "{{request.body.email}}",
+          "timestamp": "{{#with request.headers}}Received via {{User-Agent}}{{/with}}"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "delayMs": 500
+      },
+      {
+        "path": "/api/user",
+        "method": "GET",
+        "statusCode": 200,
+        "responseBody": {
+          "user": {
+            "id": "{{request.query.id}}",
+            "name": "Usuario {{request.query.id}}",
+            "requestedPath": "{{request.path}}",
+            "method": "{{request.method}}"
+          }
+        }
+      },
+      {
+        "path": "/api/health",
+        "method": "GET",
+        "statusCode": 200,
+        "responseBody": {
+          "status": "healthy",
+          "timestamp": "2024-01-01T00:00:00Z"
+        }
+      },
+      {
+        "path": "/api/error",
+        "method": "GET",
+        "statusCode": 500,
+        "responseBody": {
+          "error": "Error interno del servidor",
+          "code": "INTERNAL_ERROR"
+        }
+      },
+      {
+        "path": "/api/users/batch",
+        "method": "POST",
+        "statusCode": 200,
+        "responseBody": {
+          "message": "[{{#each request.body.users}}{\"id\":{{@index}},\"name\":\"{{this.name}}\",\"email\":\"{{this.email}}\"}{{#unless @last}},{{/unless}}{{/each}}]",
+          "total": "{{#if request.body.users}}{{#each request.body.users}}{{#if @last}}{{@index}}{{/if}}{{/each}}{{else}}0{{/if}}",
+          "processedItems": "{{#each request.body.users}}ID: {{@index}}, Name: {{this.name}}, Email: {{this.email}}{{#unless @last}}; {{/unless}}{{/each}}",
+          "requestMethod": "{{request.method}}"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      {
+        "path": "/api/users/file",
+        "method": "GET",
+        "statusCode": 200,
+        "responseBodyFilePath": "responses/user-response.json",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    ]
+  },
+  {
+    "type": "TCP",
+    "name": "Servicio TCP de Ejemplo",
+    "port": 9999,
+    "endpoints": [
+      {
+        "pattern": ".*GET.*",
+        "responseBody": {
+          "action": "GET",
+          "message": "Mensaje recibido: {{request.message}}",
+          "clientAddress": "{{request.clientAddress}}",
+          "timestamp": "{{request.timestamp}}"
+        },
+        "delayMs": 100
+      },
+      {
+        "pattern": ".*SET.*",
+        "responseBodyFilePath": "responses/tcp-response.json",
+        "delayMs": 200
+      },
+      {
+        "pattern": "CMD:(?<command>\\w+)\\s+KEY:(?<key>\\w+)\\s+VALUE:(?<value>.*)",
+        "responseBody": {
+          "status": "OK",
+          "receivedCommand": "{{request.captures.command}}",
+          "key": "{{request.captures.key}}",
+          "value": "{{request.captures.value}}",
+          "fullMessage": "{{request.message}}",
+          "client": "{{request.clientAddress}}:{{request.clientPort}}"
+        },
+        "delayMs": 50
+      },
+      {
+        "responseBody": {
+          "default": "Mensaje por defecto",
+          "originalMessage": "{{request.message}}",
+          "parsedFields": "{{request.parsedMessage}}"
+        }
+      }
+    ]
+  },
+  {
+    "type": "SOAP",
+    "name": "Servicio SOAP de Ejemplo",
+    "port": 8888,
+    "endpoints": [
+      {
+        "path": "/soap/GetUser",
+        "method": "POST",
+        "statusCode": 200,
+        "responseBody": "<?xml version=\"1.0\" encoding=\"utf-8\"?><soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><GetUserResponse><UserId>{{request.body.GetUser.UserId}}</UserId><UserName>{{request.body.GetUser.UserName}}</UserName><Email>{{request.body.GetUser.Email}}</Email></GetUserResponse></soap:Body></soap:Envelope>",
+        "headers": {
+          "Content-Type": "text/xml; charset=utf-8"
+        },
+        "delayMs": 100
+      },
+      {
+        "path": "/soap/GetProduct",
+        "method": "POST",
+        "statusCode": 200,
+        "responseBodyFilePath": "responses/soap-response.xml",
+        "headers": {
+          "Content-Type": "text/xml; charset=utf-8",
+          "SOAPAction": "\"GetProduct\""
+        },
+        "delayMs": 150
+      }
+    ]
+  }
+]

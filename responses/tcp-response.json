@@ -1,0 +1,10 @@
+{
+  "action": "SET",
+  "status": "processed",
+  "originalMessage": "{{request.message}}",
+  "client": {
+    "address": "{{request.clientAddress}}",
+    "port": {{request.clientPort}}
+  },
+  "timestamp": "{{request.timestamp}}"
+}

@@ -1,0 +1,9 @@
+{
+  "message": "Respuesta desde archivo",
+  "user": {
+    "name": "{{request.query.name}}",
+    "method": "{{request.method}}",
+    "path": "{{request.path}}"
+  },
+  "timestamp": "{{request.headers.Date}}"
+}
