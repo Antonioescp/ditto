@@ -1,142 +1,52 @@
 [
   {
     "type": "REST",
-    "name": "My ip",
-    "port": 47950,
+    "name": "Servicio REST con ResponseBody",
+    "port": 8080,
     "endpoints": [
       {
-        "path": "/api/test",
-        "method": "GET",
+        "path": "/api/data",
+        "method": "POST",
         "statusCode": 200,
         "responseBody": {
-          "message": "hello {{ request.body.name }}"
+          "message": "Datos procesados exitosamente",
+          "method": "{{request.method}}",
+          "path": "{{request.path}}",
+          "queryParams": "{{request.query}}",
+          "requestBody": "{{request.body}}",
+          "userAgent": "{{request.headers.User-Agent}}",
+          "timestamp": "{{request.headers.Date}}"
         },
         "headers": {
-          "Content-Type": "application/json"
-        }
+          "Content-Type": "application/json",
+          "X-Custom-Header": "CustomValue"
+        },
+        "delayMs": 100
       }
     ]
   },
   {
     "type": "REST",
-    "name": "API de Ejemplo",
-    "port": 8080,
+    "name": "Servicio REST con ResponseBodyFilePath",
+    "port": 8081,
     "endpoints": [
       {
         "path": "/api/users",
-        "method": "GET",
-        "statusCode": 200,
-        "responseBody": {
-          "users": [
-            {
-              "id": 1,
-              "name": "Juan Pérez",
-              "email": "juan@example.com"
-            },
-            {
-              "id": 2,
-              "name": "María García",
-              "email": "maria@example.com"
-            }
-          ]
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        }
-      },
-      {
-        "path": "/api/users",
-        "method": "POST",
-        "statusCode": 201,
-        "responseBody": {
-          "id": 3,
-          "message": "Usuario creado exitosamente",
-          "method": "{{request.method}}",
-          "userName": "{{request.body.name}}",
-          "userEmail": "{{request.body.email}}",
-          "timestamp": "{{#with request.headers}}Received via {{User-Agent}}{{/with}}"
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "delayMs": 500
-      },
-      {
-        "path": "/api/user",
-        "method": "GET",
-        "statusCode": 200,
-        "responseBody": {
-          "user": {
-            "id": "{{request.query.id}}",
-            "name": "Usuario {{request.query.id}}",
-            "requestedPath": "{{request.path}}",
-            "method": "{{request.method}}"
-          }
-        }
-      },
-      {
-        "path": "/api/health",
-        "method": "GET",
-        "statusCode": 200,
-        "responseBody": {
-          "status": "healthy",
-          "timestamp": "2024-01-01T00:00:00Z"
-        }
-      },
-      {
-        "path": "/api/error",
-        "method": "GET",
-        "statusCode": 500,
-        "responseBody": {
-          "error": "Error interno del servidor",
-          "code": "INTERNAL_ERROR"
-        }
-      },
-      {
-        "path": "/api/users/batch",
-        "method": "POST",
-        "statusCode": 200,
-        "responseBody": {
-          "message": "[{{#each request.body.users}}{\"id\":{{@index}},\"name\":\"{{this.name}}\",\"email\":\"{{this.email}}\"}{{#unless @last}},{{/unless}}{{/each}}]",
-          "total": "{{#if request.body.users}}{{#each request.body.users}}{{#if @last}}{{@index}}{{/if}}{{/each}}{{else}}0{{/if}}",
-          "processedItems": "{{#each request.body.users}}ID: {{@index}}, Name: {{this.name}}, Email: {{this.email}}{{#unless @last}}; {{/unless}}{{/each}}",
-          "requestMethod": "{{request.method}}"
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        }
-      },
-      {
-        "path": "/api/users/file",
         "method": "GET",
         "statusCode": 200,
         "responseBodyFilePath": "responses/user-response.json",
         "headers": {
           "Content-Type": "application/json"
-        }
+        },
+        "delayMs": 50
       }
     ]
   },
   {
     "type": "TCP",
-    "name": "Servicio TCP de Ejemplo",
+    "name": "Servicio TCP con ResponseBody",
     "port": 9999,
     "endpoints": [
-      {
-        "pattern": ".*GET.*",
-        "responseBody": {
-          "action": "GET",
-          "message": "Mensaje recibido: {{request.message}}",
-          "clientAddress": "{{request.clientAddress}}",
-          "timestamp": "{{request.timestamp}}"
-        },
-        "delayMs": 100
-      },
-      {
-        "pattern": ".*SET.*",
-        "responseBodyFilePath": "responses/tcp-response.json",
-        "delayMs": 200
-      },
       {
         "pattern": "CMD:(?<command>\\w+)\\s+KEY:(?<key>\\w+)\\s+VALUE:(?<value>.*)",
         "responseBody": {
@@ -145,34 +55,50 @@
           "key": "{{request.captures.key}}",
           "value": "{{request.captures.value}}",
           "fullMessage": "{{request.message}}",
-          "client": "{{request.clientAddress}}:{{request.clientPort}}"
+          "parsedMessage": "{{request.parsedMessage}}",
+          "clientAddress": "{{request.clientAddress}}",
+          "clientPort": "{{request.clientPort}}",
+          "timestamp": "{{request.timestamp}}"
         },
-        "delayMs": 50
-      },
+        "delayMs": 100
+      }
+    ]
+  },
+  {
+    "type": "TCP",
+    "name": "Servicio TCP con ResponseBodyFilePath",
+    "port": 9998,
+    "endpoints": [
       {
-        "responseBody": {
-          "default": "Mensaje por defecto",
-          "originalMessage": "{{request.message}}",
-          "parsedFields": "{{request.parsedMessage}}"
-        }
+        "pattern": ".*",
+        "responseBodyFilePath": "responses/tcp-response.json",
+        "delayMs": 50
       }
     ]
   },
   {
     "type": "SOAP",
-    "name": "Servicio SOAP de Ejemplo",
+    "name": "Servicio SOAP con ResponseBody",
     "port": 8888,
     "endpoints": [
       {
-        "path": "/soap/GetUser",
+        "path": "/soap/GetData",
         "method": "POST",
         "statusCode": 200,
-        "responseBody": "<?xml version=\"1.0\" encoding=\"utf-8\"?><soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><GetUserResponse><UserId>{{request.body.GetUser.UserId}}</UserId><UserName>{{request.body.GetUser.UserName}}</UserName><Email>{{request.body.GetUser.Email}}</Email></GetUserResponse></soap:Body></soap:Envelope>",
+        "responseBody": "<?xml version=\"1.0\" encoding=\"utf-8\"?><soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><GetDataResponse><DataId>{{request.body.GetData.DataId}}</DataId><DataName>{{request.body.GetData.DataName}}</DataName><Method>{{request.method}}</Method><Path>{{request.path}}</Path><Timestamp>{{request.headers.Date}}</Timestamp></GetDataResponse></soap:Body></soap:Envelope>",
         "headers": {
-          "Content-Type": "text/xml; charset=utf-8"
+          "Content-Type": "text/xml; charset=utf-8",
+          "SOAPAction": "\"GetData\""
         },
         "delayMs": 100
-      },
+      }
+    ]
+  },
+  {
+    "type": "SOAP",
+    "name": "Servicio SOAP con ResponseBodyFilePath",
+    "port": 8889,
+    "endpoints": [
       {
         "path": "/soap/GetProduct",
         "method": "POST",
@@ -188,18 +114,9 @@
   },
   {
     "type": "COM",
-    "name": "Servicio COM de Ejemplo",
+    "name": "Servicio COM con ResponseBody",
     "port": 3,
     "endpoints": [
-      {
-        "pattern": ".*GET.*",
-        "responseBody": {
-          "action": "GET",
-          "message": "Mensaje recibido: {{request.message}}",
-          "timestamp": "{{request.timestamp}}"
-        },
-        "delayMs": 100
-      },
       {
         "pattern": "CMD:(?<command>\\w+)\\s+KEY:(?<key>\\w+)\\s+VALUE:(?<value>.*)",
         "responseBody": {
@@ -208,21 +125,22 @@
           "key": "{{request.captures.key}}",
           "value": "{{request.captures.value}}",
           "fullMessage": "{{request.message}}",
+          "parsedMessage": "{{request.parsedMessage}}",
           "timestamp": "{{request.timestamp}}"
         },
-        "delayMs": 50
-      },
+        "delayMs": 100
+      }
+    ]
+  },
+  {
+    "type": "COM",
+    "name": "Servicio COM con ResponseBodyFilePath",
+    "port": 4,
+    "endpoints": [
       {
-        "pattern": ".*SET.*",
+        "pattern": ".*",
         "responseBodyFilePath": "responses/com-response.json",
         "delayMs": 200
-      },
-      {
-        "responseBody": {
-          "default": "Mensaje por defecto COM",
-          "originalMessage": "{{request.message}}",
-          "parsedFields": "{{request.parsedMessage}}"
-        }
       }
     ]
   }
