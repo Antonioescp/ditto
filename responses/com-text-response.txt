@@ -1,0 +1,2 @@
+Respuesta de texto plano recibida: {{request.message}}
+Timestamp: {{request.timestamp}}

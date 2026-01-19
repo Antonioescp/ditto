@@ -143,5 +143,93 @@
         "delayMs": 200
       }
     ]
+  },
+  {
+    "type": "COM",
+    "name": "Servicio COM con Respuestas Múltiples Secuenciales",
+    "port": 5,
+    "endpoints": [
+      {
+        "pattern": "START",
+        "responses": [
+          {
+            "responseBody": {
+              "step": 1,
+              "message": "Iniciando proceso",
+              "timestamp": "{{request.timestamp}}"
+            },
+            "delayMs": 100
+          },
+          {
+            "responseBody": {
+              "step": 2,
+              "message": "Procesando datos",
+              "receivedMessage": "{{request.message}}"
+            },
+            "delayMs": 500
+          },
+          {
+            "responseBody": {
+              "step": 3,
+              "message": "Finalizando proceso",
+              "status": "COMPLETED"
+            },
+            "delayMs": 200
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "COM",
+    "name": "Servicio COM con Texto Plano (ResponseBody)",
+    "port": 6,
+    "endpoints": [
+      {
+        "pattern": "TEXT",
+        "responseBody": "Respuesta de texto plano: {{request.message}} recibido a las {{request.timestamp}}",
+        "delayMs": 100
+      }
+    ]
+  },
+  {
+    "type": "COM",
+    "name": "Servicio COM con Texto Plano (Archivo)",
+    "port": 7,
+    "endpoints": [
+      {
+        "pattern": "FILE",
+        "responseBodyFilePath": "responses/com-text-response.txt",
+        "delayMs": 100
+      }
+    ]
+  },
+  {
+    "type": "COM",
+    "name": "Servicio COM con Respuestas Múltiples (Texto y JSON)",
+    "port": 8,
+    "endpoints": [
+      {
+        "pattern": "MIXED",
+        "responses": [
+          {
+            "responseBody": "Paso 1: Iniciando proceso - {{request.timestamp}}",
+            "delayMs": 100
+          },
+          {
+            "responseBody": {
+              "step": 2,
+              "message": "Procesando en formato JSON",
+              "received": "{{request.message}}"
+            },
+            "delayMs": 300
+          },
+          {
+            "responseBodyFilePath": "responses/com-text-response.txt",
+            "delayMs": 200
+          }
+        ]
+      }
+    ]
   }
 ]

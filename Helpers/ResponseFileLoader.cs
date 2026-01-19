@@ -62,4 +62,24 @@ public static class ResponseFileLoader
         
         return endpoint.ResponseBody;
     }
+
+    /// <summary>
+    /// Obtiene el contenido de respuesta para respuestas secuenciales (COM).
+    /// Retorna el contenido como string si es texto plano, o como objeto si es JSON.
+    /// </summary>
+    public static async Task<object?> GetSequentialResponseBodyAsync(SequentialResponse response, ILogger logger)
+    {
+        if (!string.IsNullOrWhiteSpace(response.ResponseBodyFilePath))
+        {
+            var fileContent = await LoadResponseFileAsync(response.ResponseBodyFilePath, logger);
+            if (fileContent == null)
+            {
+                logger.LogError("No se pudo leer el archivo de respuesta: {FilePath}", response.ResponseBodyFilePath);
+                return null;
+            }
+            return ParseResponseFileContent(fileContent);
+        }
+        
+        return response.ResponseBody;
+    }
 }

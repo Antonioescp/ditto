@@ -168,64 +168,24 @@ public class ComService : IService
                 return;
             }
 
-            // Aplicar delay si está configurado
-            if (endpoint.DelayMs.HasValue && endpoint.DelayMs.Value > 0)
+            // Crear contexto de la request para Handlebars (incluye grupos de captura regex)
+            var requestContext = CreateComRequestContext(message, regexMatch);
+
+            // Aplicar delay inicial si está configurado (solo para respuesta única)
+            if (endpoint.DelayMs.HasValue && endpoint.DelayMs.Value > 0 && (endpoint.Responses == null || endpoint.Responses.Count == 0))
             {
                 await Task.Delay(endpoint.DelayMs.Value, cancellationToken);
             }
 
-            // Crear contexto de la request para Handlebars (incluye grupos de captura regex)
-            var requestContext = CreateComRequestContext(message, regexMatch);
-            
-            // Obtener el body de respuesta
-            var responseBodyToProcess = await ResponseFileLoader.GetResponseBodyAsync(endpoint, _logger);
-            if (responseBodyToProcess == null && !string.IsNullOrWhiteSpace(endpoint.ResponseBodyFilePath))
+            // Manejar respuestas múltiples secuenciales (solo para COM)
+            if (endpoint.Responses != null && endpoint.Responses.Count > 0)
             {
-                _logger.LogError("No se pudo leer el archivo de respuesta: {FilePath}", endpoint.ResponseBodyFilePath);
-                return;
-            }
-
-            if (responseBodyToProcess == null)
-            {
-                return;
-            }
-
-            // Procesar template con Handlebars
-            object processedBody;
-            try
-            {
-                processedBody = _templateProcessor.ProcessTemplate(responseBodyToProcess, requestContext);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al procesar template Handlebars");
-                return;
-            }
-
-            // Formatear respuesta
-            string responseText;
-            if (processedBody is string stringResponse)
-            {
-                // Si es un string, enviarlo directamente (texto plano)
-                responseText = stringResponse;
+                await SendMultipleResponsesAsync(endpoint.Responses, requestContext, cancellationToken);
             }
             else
             {
-                // Si es un objeto, serializar como JSON
-                responseText = JsonSerializer.Serialize(processedBody, new JsonSerializerOptions
-                {
-                    WriteIndented = false
-                });
-            }
-            
-            // Enviar respuesta al puerto serial
-            lock (_lockObject)
-            {
-                if (_serialPort != null && _serialPort.IsOpen)
-                {
-                    _serialPort.Write(responseText + Environment.NewLine);
-                    _logger.LogInformation("Respuesta COM enviada: {Response}", responseText);
-                }
+                // Comportamiento original: respuesta única
+                await SendSingleResponseAsync(endpoint, requestContext, cancellationToken);
             }
         }
         catch (Exception ex)
@@ -299,5 +259,160 @@ public class ComService : IService
         {
             ["request"] = requestDict
         };
+    }
+
+    private async Task SendSingleResponseAsync(EndpointConfiguration endpoint, Dictionary<string, object> requestContext, CancellationToken cancellationToken)
+    {
+        // Obtener el body de respuesta
+        var responseBodyToProcess = await ResponseFileLoader.GetResponseBodyAsync(endpoint, _logger);
+        if (responseBodyToProcess == null && !string.IsNullOrWhiteSpace(endpoint.ResponseBodyFilePath))
+        {
+            _logger.LogError("No se pudo leer el archivo de respuesta: {FilePath}", endpoint.ResponseBodyFilePath);
+            return;
+        }
+
+        if (responseBodyToProcess == null)
+        {
+            return;
+        }
+
+        // Procesar template con Handlebars
+        object processedBody;
+        try
+        {
+            processedBody = ProcessComResponse(responseBodyToProcess, requestContext);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al procesar template Handlebars");
+            return;
+        }
+
+        // Formatear y enviar respuesta
+        await SendResponseAsync(processedBody, cancellationToken);
+    }
+
+    private async Task SendMultipleResponsesAsync(List<SequentialResponse> responses, Dictionary<string, object> requestContext, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Enviando {Count} respuestas secuenciales COM", responses.Count);
+
+        for (int i = 0; i < responses.Count; i++)
+        {
+            var sequentialResponse = responses[i];
+
+            // Aplicar delay antes de esta respuesta si está configurado
+            if (sequentialResponse.DelayMs.HasValue && sequentialResponse.DelayMs.Value > 0)
+            {
+                await Task.Delay(sequentialResponse.DelayMs.Value, cancellationToken);
+            }
+
+            // Obtener el body de respuesta
+            var responseBodyToProcess = await ResponseFileLoader.GetSequentialResponseBodyAsync(sequentialResponse, _logger);
+            if (responseBodyToProcess == null)
+            {
+                _logger.LogWarning("La respuesta secuencial #{Index} no tiene contenido", i + 1);
+                continue;
+            }
+
+            // Procesar template con Handlebars
+            object processedBody;
+            try
+            {
+                processedBody = ProcessComResponse(responseBodyToProcess, requestContext);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al procesar template Handlebars para respuesta secuencial #{Index}", i + 1);
+                continue;
+            }
+
+            // Formatear y enviar respuesta
+            await SendResponseAsync(processedBody, cancellationToken);
+        }
+
+        _logger.LogInformation("Todas las respuestas secuenciales COM han sido enviadas");
+    }
+
+    /// <summary>
+    /// Procesa la respuesta COM con Handlebars, manejando correctamente strings y objetos.
+    /// </summary>
+    private object ProcessComResponse(object responseBody, Dictionary<string, object> requestContext)
+    {
+        // Si el responseBody es un string directo, procesarlo como template de texto plano
+        if (responseBody is string stringBody)
+        {
+            try
+            {
+                // Procesar el string con Handlebars directamente
+                var template = HandlebarsDotNet.Handlebars.Compile(stringBody);
+                var result = template(requestContext);
+                return result;
+            }
+            catch
+            {
+                // Si falla el procesamiento, retornar el string original
+                return stringBody;
+            }
+        }
+
+        // Para objetos, usar el procesador de templates normal
+        return _templateProcessor.ProcessTemplate(responseBody, requestContext);
+    }
+
+    private async Task SendResponseAsync(object processedBody, CancellationToken cancellationToken)
+    {
+        // Formatear respuesta
+        string responseText;
+        if (processedBody is string stringResponse)
+        {
+            // Si es un string, enviarlo directamente (texto plano)
+            // Remover comillas escapadas si Handlebars las agregó
+            responseText = UnescapeString(stringResponse);
+        }
+        else
+        {
+            // Si es un objeto, serializar como JSON
+            responseText = JsonSerializer.Serialize(processedBody, new JsonSerializerOptions
+            {
+                WriteIndented = false
+            });
+        }
+
+        // Enviar respuesta al puerto serial
+        lock (_lockObject)
+        {
+            if (_serialPort != null && _serialPort.IsOpen)
+            {
+                _serialPort.Write(responseText + Environment.NewLine);
+                _logger.LogInformation("Respuesta COM enviada: {Response}", responseText);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Remueve comillas JSON escapadas de un string si las tiene.
+    /// Si el string está envuelto en comillas JSON (ej: "\"texto\""), retorna solo el contenido.
+    /// </summary>
+    private string UnescapeString(string str)
+    {
+        if (string.IsNullOrEmpty(str))
+            return str;
+
+        // Si el string comienza y termina con comillas escapadas, removerlas
+        if (str.Length >= 2 && str.StartsWith("\"") && str.EndsWith("\""))
+        {
+            try
+            {
+                // Intentar deserializar como JSON string para obtener el valor sin comillas
+                var unescaped = JsonSerializer.Deserialize<string>(str);
+                return unescaped ?? str;
+            }
+            catch
+            {
+                // Si falla, retornar el string original
+            }
+        }
+
+        return str;
     }
 }

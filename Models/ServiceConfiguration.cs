@@ -23,4 +23,14 @@ public class EndpointConfiguration
     
     // Campos específicos de TCP
     public string? Pattern { get; set; }  // Patrón para matchear mensajes TCP (regex opcional)
+    
+    // Campos específicos de COM - Respuestas múltiples secuenciales
+    public List<SequentialResponse>? Responses { get; set; }  // Lista de respuestas para enviar secuencialmente (solo COM)
+}
+
+public class SequentialResponse
+{
+    public object? ResponseBody { get; set; }
+    public string? ResponseBodyFilePath { get; set; }
+    public int? DelayMs { get; set; }  // Delay antes de enviar esta respuesta (en milisegundos)
 }
